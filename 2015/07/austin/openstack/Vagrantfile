@@ -1,0 +1,22 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure(2) do |config|
+
+  config.vm.synced_folder "~/", "/vagrant_home"
+
+  # One vm running all the services
+  config.vm.define "mon-agent" do |ma|
+    ma.vm.hostname = 'mon-agent'
+    ma.vm.box = "ubuntu/trusty64"
+    ma.vm.network :private_network, ip: "192.168.10.6"
+    ma.vm.provider "virtualbox" do |vb|
+      vb.memory = 4096
+      vb.cpus = 2
+    end
+    ma.vm.provision "ansible" do |ansible|
+      ansible.playbook = "mon-agent.yml"
+      ansible.raw_arguments = ['-T 30', '-e pipelining=True']
+    end
+  end
+end

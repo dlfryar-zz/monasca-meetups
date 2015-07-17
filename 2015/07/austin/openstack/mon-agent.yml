@@ -1,0 +1,19 @@
+- name: Install deps
+  hosts: mon-agent
+  sudo: yes
+  pre_tasks:
+    - name: apt-get update
+      apt: update_cache=yes
+    - name: Install virtualenv
+      apt: name=python-virtualenv
+    - name: Install Python development libs
+      apt: name=python-dev
+  tasks:
+    - name: Install pip from apt
+      apt: name=python-pip state=present
+    - name: pip upgrade pip
+      pip: name=pip state=latest
+    - name: Install python-dev
+      apt: name=python-dev state=present
+    - name: Install directory tree utility
+      apt: name=tree state=present
