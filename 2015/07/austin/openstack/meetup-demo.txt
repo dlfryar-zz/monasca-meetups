@@ -49,6 +49,12 @@ sudo su -c alpine
 
 ######## how to write and setup a plugin
 
+# on your host system
+cd ~/tmp/ubuntu_vm_vagrant/
+
+# download influxdb and put it in your temp directory
+wget https://s3.amazonaws.com/influxdb/influxdb_0.9.0-rc28_amd64.deb
+
 # install influxdb
 sudo dpkg -i /vagrant_home/tmp/ubuntu-vm-vagrant/influxdb_0.9.0-rc28_amd64.deb
 
