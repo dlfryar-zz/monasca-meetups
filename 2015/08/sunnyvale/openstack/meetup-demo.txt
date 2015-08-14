@@ -12,23 +12,25 @@ ssh -i default.pem core@15.126.219.85 -L 8183:localhost:8083 -L 8100:localhost:8
 
 wget https://horizon.hpcloud.com/project/containers/openstack_meetup_sunnyvale_aug_2015/default.pem
 
-# Run a Docker Ubuntu container
-docker run -i -t ubuntu /bin/bash
+# Doing the download using a container
+        # Run a Docker Ubuntu container
+        # Install Git so we can clone the Monasca Docker demo
+        # Clone repo
+        docker run --name docker_meetup_container ubuntu /bin/bash -c "apt-get update;apt-get install git -y;git clone https://github.com/hpcloud-mon/monasca-docker.git"
 
-# Install Git so we can clone the Monasca Docker demo
-apt-get install git -y
+        # Set a variable name to the docker container
+        docker_meetup_container=$(docker ps -a | grep docker_meetup_container | grep -v grep | awk '{print $1}')
 
-# Clone repo
-git clone https://github.com/hpcloud-mon/monasca-docker.git
+        # Copy the monasca-docker.git repo we cloned in the container to the host
+        docker cp ${docker_meetup_container}:/monasca-docker . && cd monasca-docker
 
-# Close container
-exit
+        # Remove the container since we no longer need it
+        docker rm ${docker_meetup_container}
 
-# Back on the Docker target host (15.126.219.85) find the Ubuntu container ID
-docker ps -a
-
-# Copy the closed repo in the container to the Docker host
-docker cp 04232a59ec1b:/monasca-docker .
+# Doing the download with cUrl
+# Download the tarball of monasca-docker since we don't have git on CoreOS
+curl -L https://github.com/hpcloud-mon/monasca-docker/tarball/master/monasca-docker.tar.gz | tar zx
+wget -qO - https://github.com/hpcloud-mon/monasca-docker/tarball/master/monasca-docker.tar.gz | tar xz
 
 # Run the Monasca Docker demo
 cd monasca-docker
@@ -39,9 +41,12 @@ docker run -d -p 8083:8083 -p 80:80 -p 8080:8080 -p 5000:5000 --name monasca mon
 # Connect to the public cloud instance
 ssh -i default.pem core@15.126.219.85
 
+# Set a variable name to the docker container
+docker_monasca_container=$(docker ps -a | grep monasca | grep -v grep | awk '{print $1}')
+
 # From the Docker target host (15.126.219.85) start a bash shell on the Monasca container
 # you need the --login to read your .profile
-docker exec -ti 8892698f020c /bin/bash --login
+docker exec -ti ${docker_monasca_container} /bin/bash --login
 
 # Install some useful utilities
 apt-get install most tree vim alpine curl openjdk-8-jdk -y
@@ -49,6 +54,7 @@ apt-get install most tree vim alpine curl openjdk-8-jdk -y
 # Set up the credentials so the monasca CLI will work
 echo "" /root/.profile
 echo "export LANG=en_US.UTF-8" >> /root/.profile
+echo "export PYTHONIOENCODING=utf-8" >> /root/.profile
 echo "export TERM=vt100" >> /root/.profile
 echo "export OS_PROJECT_NAME=mini-mon" >> /root/.profile
 echo "export OS_PASSWORD=password" >> /root/.profile
@@ -64,15 +70,38 @@ localedef -v -c -i en_US -f UTF-8 en_US.UTF-8
 source /root/.profile
 
 # Start the notification engine
-/opt/monasca/bin/python /opt/monasca/bin/monasca-notification
+/opt/monasca/bin/python /opt/monasca/bin/monasca-notification &
 
 # Start the Monasca Persister
-/usr/bin/java -Dfile.encoding=UTF-8 -Xmx1g -cp /opt/monasca/monasca-persister.jar:/opt/monasca/vertica/vertica_jdbc.jar monasca.persister.PersisterApplication server /etc/monasca/persister-config.yml
+/usr/bin/java -Dfile.encoding=UTF-8 -Xmx1g -cp /opt/monasca/monasca-persister.jar:/opt/monasca/vertica/vertica_jdbc.jar monasca.persister.PersisterApplication server /etc/monasca/persister-config.yml &
 
 # Install the smoke tests
 curl -L https://github.com/hpcloud-mon/monasca-ci/tarball/master | tar zx && cp -R ./hpcloud-mon-monasca-ci-*/tests /opt/monasca
 
-# Run the smoke tests
+# Run the smoke test
 /opt/monasca/tests/smoke/smoke.py
 
 
+
+
+################ DEVSTACK ################
+
+# Login to the new instance
+ssh -i default.pem ubuntu@15.126.128.225
+
+# Install Git
+sudo apt-get update;sudo apt-get install git -y
+
+# Clone Devstack
+git clone https://git.openstack.org/openstack-dev/devstack && cd devstack
+
+# Setup the IP from the external host
+cp samples/local.conf .
+
+# Put in our public IP
+sed -i 's/#HOST_IP=w\.x\.y\.z/15.126.128.225/g' local.conf
+
+# Configure Heat
+
+# Start Devstack
+./stack.sh
