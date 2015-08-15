@@ -8,7 +8,7 @@ openstack_meetup_sunnyvale_aug_2015
 
 # Connect to the public cloud instance
 ssh-keygen -R 15.126.219.85
-ssh -i default.pem core@15.126.219.85 -L 8183:localhost:8083 -L 8100:localhost:80 -L 8180:localhost:8080 -L 5100:localhost:5000
+ssh -i ~/tmp/default.pem core@15.126.219.85 -L 8183:localhost:8083 -L 8100:localhost:80 -L 8180:localhost:8080 -L 5100:localhost:5000
 
 wget https://horizon.hpcloud.com/project/containers/openstack_meetup_sunnyvale_aug_2015/default.pem
 
@@ -39,7 +39,7 @@ docker run -d -p 8083:8083 -p 80:80 -p 8080:8080 -p 5000:5000 --name monasca mon
 ############### TERMINAL 2 ###############
 
 # Connect to the public cloud instance
-ssh -i default.pem core@15.126.219.85
+ssh -i ~/tmp/default.pem core@15.126.219.85
 
 # Set a variable name to the docker container
 docker_monasca_container=$(docker ps -a | grep monasca | grep -v grep | awk '{print $1}')
@@ -87,10 +87,10 @@ curl -L https://github.com/hpcloud-mon/monasca-ci/tarball/master | tar zx && cp 
 ################ DEVSTACK ################
 
 # Login to the new instance
-ssh -i default.pem ubuntu@15.126.128.225
+ssh -i ~/tmp/default.pem ubuntu@15.126.128.225
 
 # Install Git
-sudo apt-get update;sudo apt-get install git -y
+sudo apt-get update;sudo apt-get install git python-openstackclient -y
 
 # Clone Devstack
 git clone https://git.openstack.org/openstack-dev/devstack && cd devstack
@@ -99,7 +99,10 @@ git clone https://git.openstack.org/openstack-dev/devstack && cd devstack
 cp samples/local.conf .
 
 # Put in our public IP
-sed -i 's/#HOST_IP=w\.x\.y\.z/15.126.128.225/g' local.conf
+sed -i 's/#HOST_IP=w\.x\.y\.z/127.0.0.1/g' local.conf
+
+# The network overlaps with the public cloud internal network
+sed -i 's/10\.0\.0\.0/10.10.10.0/g' stackrc
 
 # Configure Heat
 
