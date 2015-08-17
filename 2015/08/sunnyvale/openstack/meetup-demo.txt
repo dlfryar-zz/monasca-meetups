@@ -87,7 +87,7 @@ curl -L https://github.com/hpcloud-mon/monasca-ci/tarball/master | tar zx && cp 
 ################ DEVSTACK ################
 
 # Login to the new instance
-ssh -i ~/tmp/default.pem ubuntu@15.126.128.225
+ssh -i ~/tmp/default.pem ubuntu@15.126.128.225 -L 8283:localhost:8083 -L 8200:localhost:80 -L 8280:localhost:8080 -L 5200:localhost:5000
 
 # Install Git
 sudo apt-get update;sudo apt-get install git python-openstackclient -y
@@ -104,7 +104,20 @@ sed -i 's/#HOST_IP=w\.x\.y\.z/127.0.0.1/g' local.conf
 # The network overlaps with the public cloud internal network
 sed -i 's/10\.0\.0\.0/10.10.10.0/g' stackrc
 
-# Configure Heat
+# Enable Heat on Devstack
+sed -i '/[[local|localrc]]/a \\n#Enable heat services\nenable_service h-eng h-api h-api-cfn h-api-cw' local.conf
+
+# Upload a Docker image to Glance
+glance image-create --name CoreOS --container-format bare --disk-format qcow2 --progress --file ~/images/coreos_production_openstack_image.img
 
 # Start Devstack
 ./stack.sh
+
+# Get the envs set
+source openrc
+
+# Create a mini-mon project
+keystone tenant-create --name=mini-mon
+
+# Create a user
+keystone user-create  --name mini-mon --pass password --tenant mini-mon --enabled true
