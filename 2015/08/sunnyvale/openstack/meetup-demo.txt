@@ -82,8 +82,6 @@ curl -L https://github.com/hpcloud-mon/monasca-ci/tarball/master | tar zx && cp 
 /opt/monasca/tests/smoke/smoke.py
 
 
-
-
 ################ DEVSTACK ################
 
 # Login to the new instance
@@ -99,16 +97,16 @@ git clone https://git.openstack.org/openstack-dev/devstack && cd devstack
 cp samples/local.conf .
 
 # Put in our public IP
-sed -i 's/#HOST_IP=w\.x\.y\.z/127.0.0.1/g' local.conf
+sed -i 's/#HOST_IP=w\.x\.y\.z/HOST_IP=10.0.0.47/g' local.conf
 
-# The network overlaps with the public cloud internal network
-sed -i 's/10\.0\.0\.0/10.10.10.0/g' stackrc
+# Enable Neutron on Devstack
+sed -i '/[[local|localrc]]/a \\n#Enable Neutron services\ndisable_service n-net\nenable_service q-svc\nenable_service q-agt\nenable_service q-dhcp\nenable_service q-l3\nenable_service q-meta' local.conf
 
 # Enable Heat on Devstack
 sed -i '/[[local|localrc]]/a \\n#Enable heat services\nenable_service h-eng h-api h-api-cfn h-api-cw' local.conf
 
-# Upload a Docker image to Glance
-glance image-create --name CoreOS --container-format bare --disk-format qcow2 --progress --file ~/images/coreos_production_openstack_image.img
+# The network overlaps with the public cloud internal network
+sed -i 's/10\.0\.0\.0/10.10.10.0/g' stackrc
 
 # Start Devstack
 ./stack.sh
@@ -121,3 +119,7 @@ keystone tenant-create --name=mini-mon
 
 # Create a user
 keystone user-create  --name mini-mon --pass password --tenant mini-mon --enabled true
+
+# Upload a Docker image to Glance
+glance image-create --name CoreOS --container-format bare --disk-format qcow2 --progress --file ~/images/coreos_production_openstack_image.img
+
