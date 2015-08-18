@@ -34,7 +34,7 @@ wget -qO - https://github.com/hpcloud-mon/monasca-docker/tarball/master/monasca-
 
 # Run the Monasca Docker demo
 cd monasca-docker
-docker run -d -p 8083:8083 -p 80:80 -p 8080:8080 -p 5000:5000 --name monasca monasca/demo
+docker run -d -p 8083:8083 -p 80:80 -p 8080:8080 -p 5000:5000 -p 35357:35357 --name monasca monasca/demo
 
 ############### TERMINAL 2 ###############
 
@@ -122,4 +122,35 @@ keystone user-create  --name mini-mon --pass password --tenant mini-mon --enable
 
 # Upload a Docker image to Glance
 glance image-create --name CoreOS --container-format bare --disk-format qcow2 --progress --file ~/images/coreos_production_openstack_image.img
+
+
+
+
+################ Kanagaraj NOTES ################
+
+export HEAT_URL=http://10.0.0.47:8004/v1/f3fde1481ce54a7391214d1c955360e4
+export OS_PROJECT_NAME=mini-mon
+export OS_PASSWORD=password
+export OS_AUTH_URL=http://10.0.0.46:35357/v2.0
+export OS_USERNAME=mini-mon
+export OS_TENANT_NAME=mini-mon
+
+/etc/heat/heat.conf
+
+	# stack_domain_admin_password = nomoresecrete
+	# stack_domain_admin = heat_domain_admin
+	# stack_user_domain_id = 914416477e5d4f3dbe8c04b675c77504
+	# deferred_auth_method = trusts
+
+	[keystone_authtoken]
+	# signing_dir = /var/cache/heat
+	# cafile = /opt/stack/data/ca-bundle.pem
+	admin_tenant_name = admin
+	admin_password = admin
+	admin_user = admin
+	identity_uri = http://10.0.0.46:35357
+	auth_uri = http://10.0.0.46:5000/v2.0
+
+	[ec2authtoken]
+	auth_uri = http://10.0.0.46:5000/v2.0
 
