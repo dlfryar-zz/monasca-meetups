@@ -8,38 +8,15 @@ openstack_meetup_sunnyvale_aug_2015
 
 # Connect to the public cloud instance
 ssh-keygen -R 15.126.219.85
-ssh -i ~/tmp/default.pem core@15.126.219.85 -L 8183:localhost:8083 -L 8100:localhost:80 -L 8180:localhost:8080 -L 5100:localhost:5000
-
-wget https://horizon.hpcloud.com/project/containers/openstack_meetup_sunnyvale_aug_2015/default.pem
-
-# Doing the download using a container
-        # Run a Docker Ubuntu container
-        # Install Git so we can clone the Monasca Docker demo
-        # Clone repo
-        docker run --name docker_meetup_container ubuntu /bin/bash -c "apt-get update;apt-get install git -y;git clone https://github.com/hpcloud-mon/monasca-docker.git"
-
-        # Set a variable name to the docker container
-        docker_meetup_container=$(docker ps -a | grep docker_meetup_container | grep -v grep | awk '{print $1}')
-
-        # Copy the monasca-docker.git repo we cloned in the container to the host
-        docker cp ${docker_meetup_container}:/monasca-docker . && cd monasca-docker
-
-        # Remove the container since we no longer need it
-        docker rm ${docker_meetup_container}
+ssh -i ~/tmp/default.pem core@15.126.219.85 -L 8183:localhost:8083 -L 8100:localhost:80 -L 8180:localhost:8080 -L 5100:localhost:5000 -L 35357:localhost:35357
 
 # Doing the download with cUrl
 # Download the tarball of monasca-docker since we don't have git on CoreOS
-curl -L https://github.com/hpcloud-mon/monasca-docker/tarball/master/monasca-docker.tar.gz | tar zx
-wget -qO - https://github.com/hpcloud-mon/monasca-docker/tarball/master/monasca-docker.tar.gz | tar xz
+curl -L https://github.com/hpcloud-mon/monasca-docker/tarball/master/monasca-docker.tar.gz | tar zx && cd *monasca-docker*
+wget -qO - https://github.com/hpcloud-mon/monasca-docker/tarball/master/monasca-docker.tar.gz | tar xz && cd *monasca-docker*
 
 # Run the Monasca Docker demo
-cd monasca-docker
-docker run -d -p 8083:8083 -p 80:80 -p 8080:8080 -p 5000:5000 -p 35357:35357 --name monasca monasca/demo
-
-############### TERMINAL 2 ###############
-
-# Connect to the public cloud instance
-ssh -i ~/tmp/default.pem core@15.126.219.85
+sudo docker run -d -p 8083:8083 -p 80:80 -p 8080:8080 -p 5000:5000 -p 35357:35357 --name monasca monasca/demo
 
 # Set a variable name to the docker container
 docker_monasca_container=$(docker ps -a | grep monasca | grep -v grep | awk '{print $1}')
@@ -53,21 +30,55 @@ apt-get install most tree vim alpine curl openjdk-8-jdk -y
 
 # Set up the credentials so the monasca CLI will work
 echo "" /root/.profile
-echo "export LANG=en_US.UTF-8" >> /root/.profile
-echo "export PYTHONIOENCODING=utf-8" >> /root/.profile
-echo "export TERM=vt100" >> /root/.profile
-echo "export OS_PROJECT_NAME=mini-mon" >> /root/.profile
-echo "export OS_PASSWORD=password" >> /root/.profile
-echo "export OS_AUTH_URL=http://localhost:35357/v3/" >> /root/.profile
-echo "export OS_USERNAME=mini-mon" >> /root/.profile
-echo "# Use the Monasca Python virtualenv" >> /root/.profile
-echo "source /opt/monasca/bin/activate" >> /root/.profile
+echo "export LANG=en_US.UTF-8" >> ~/.profile
+echo "export PYTHONIOENCODING=utf-8" >> ~/.profile
+echo "export TERM=vt100" >> ~/.profile
+echo "# Use the Monasca Python virtualenv" >> ~/.profile
+echo "source /opt/monasca/bin/activate" >> ~/.profile
+
+# Set up the environment so the monasca client tool will work
+echo "export OS_PROJECT_NAME=mini-mon" > monasca.env
+echo "export OS_PASSWORD=password" >> monasca.env
+echo "export OS_AUTH_URL=http://localhost:35357/v3/" >> monasca.env
+echo "export OS_USERNAME=mini-mon" >> monasca.env
+
+# Create a identity_show command
+#!/bin/bash
+
+url="http://localhost:35357/v3/"
+
+TOKEN=`curl -s -X POST http://localhost:35357/v2.0/tokens -d '{"auth": {"passwordCredentials": {"username":"admin", "password":"admin"}, "tenantName":"admin"}}' -H "Content-type: application/json" | python -c 'import json,sys; response=json.loads(sys.stdin.read()); print response["access"]["token"]["id"]'`;
+
+if [ "$1" == "users" ]; then
+  resource="users"
+fi
+
+if [ "$1" == "domains" ]; then
+  resource="domains"
+fi
+
+if [ ! -z $resource ]; then
+  curl -s $url$resource -H "X-Auth-Token: "$TOKEN"" | python -m json.tool
+fi
+
+# Source the env
+source monasca.env
+
+# Set up the environment so the keystone tool will work
+echo "export OS_PROJECT_NAME=admin" > devstack.env
+echo "export OS_PASSWORD=admin" >> devstack.env
+echo "export OS_AUTH_URL=http://localhost:5000/v2.0" >> devstack.env
+echo "export OS_USERNAME=admin" >> devstack.env
+echo "export OS_TENANT_NAME=admin" >> devstack.env
+
+# Source the env
+source devstack.env
 
 # Generate a US locale
 localedef -v -c -i en_US -f UTF-8 en_US.UTF-8
 
 # Bring the credentials in to our current shell
-source /root/.profile
+source ~/.profile
 
 # Start the notification engine
 /opt/monasca/bin/python /opt/monasca/bin/monasca-notification &
@@ -85,10 +96,10 @@ curl -L https://github.com/hpcloud-mon/monasca-ci/tarball/master | tar zx && cp 
 ################ DEVSTACK ################
 
 # Login to the new instance
-ssh -i ~/tmp/default.pem ubuntu@15.126.128.225 -L 8283:localhost:8083 -L 8200:localhost:80 -L 8280:localhost:8080 -L 5200:localhost:5000
+ssh -i ~/tmp/default.pem ubuntu@15.126.128.225 -L 8283:localhost:8083 -L 8200:localhost:80 -L 8280:localhost:8080 -L 5200:localhost:5000 -L 3306:localhost:3306
 
 # Install Git
-sudo apt-get update;sudo apt-get install git python-openstackclient -y
+sudo apt-get update;sudo apt-get install git most -y
 
 # Clone Devstack
 git clone https://git.openstack.org/openstack-dev/devstack && cd devstack
@@ -97,13 +108,16 @@ git clone https://git.openstack.org/openstack-dev/devstack && cd devstack
 cp samples/local.conf .
 
 # Put in our public IP
-sed -i 's/#HOST_IP=w\.x\.y\.z/HOST_IP=10.0.0.47/g' local.conf
+sed -i 's/#HOST_IP=w\.x\.y\.z/HOST_IP=10.0.0.51/g' local.conf
 
 # Enable Neutron on Devstack
 sed -i '/[[local|localrc]]/a \\n#Enable Neutron services\ndisable_service n-net\nenable_service q-svc\nenable_service q-agt\nenable_service q-dhcp\nenable_service q-l3\nenable_service q-meta' local.conf
 
 # Enable Heat on Devstack
 sed -i '/[[local|localrc]]/a \\n#Enable heat services\nenable_service h-eng h-api h-api-cfn h-api-cw' local.conf
+
+# Match the admin password with Monasca's admin
+sed -i 's/ADMIN_PASSWORD=nomoresecrete/ADMIN_PASSWORD=admin/g' local.conf
 
 # The network overlaps with the public cloud internal network
 sed -i 's/10\.0\.0\.0/10.10.10.0/g' stackrc
@@ -112,26 +126,36 @@ sed -i 's/10\.0\.0\.0/10.10.10.0/g' stackrc
 ./stack.sh
 
 # Get the envs set
-source openrc
+source openrc admin admin
 
-# Create a mini-mon project
-keystone tenant-create --name=mini-mon
+# Setup the env for python-monascaclient
+echo "export OS_AUTH_URL=http://10.0.0.51:35357/v3/" > ~/monasca.env
+echo "export OS_PASSWORD=admin" >> ~/monasca.env
+echo "export OS_PROJECT_NAME=mini-mon" >> ~/monasca.env
+echo "export OS_USERNAME=admin" >> ~/monasca.env
+echo "export OS_NO_CLIENT_AUTH=1" >> ~/monasca.env
+echo "export MONASCA_API_URL=http://10.0.0.51:8080/v2.0/" >> ~/monasca.env
 
-# Create a user
-keystone user-create  --name mini-mon --pass password --tenant mini-mon --enabled true
+# Setup the env for openstack tools
+echo "export OS_REGION_NAME=RegionOne" > ~/devstack.env
+echo "export OS_IDENTITY_API_VERSION=2.0" >> ~/devstack.env
+echo "export OS_PASSWORD=admin" >> ~/devstack.env
+echo "export OS_AUTH_URL=http://localhost:5000/v2.0" >> ~/devstack.env
+echo "export OS_USERNAME=admin" >> ~/devstack.env
+echo "export OS_TENANT_NAME=admin" >> ~/devstack.env
+echo "export OS_VOLUME_API_VERSION=2" >> ~/devstack.env
+echo "export OS_NO_CACHE=1" >> ~/devstack.env
 
 # Upload a Docker image to Glance
 glance image-create --name CoreOS --container-format bare --disk-format qcow2 --progress --file ~/images/coreos_production_openstack_image.img
 
 
-
-
 ################ Kanagaraj NOTES ################
 
-export HEAT_URL=http://10.0.0.47:8004/v1/f3fde1481ce54a7391214d1c955360e4
+export HEAT_URL=http://10.0.0.51:8004/v1/f3fde1481ce54a7391214d1c955360e4
 export OS_PROJECT_NAME=mini-mon
 export OS_PASSWORD=password
-export OS_AUTH_URL=http://10.0.0.46:35357/v2.0
+export OS_AUTH_URL=http://10.0.0.50:35357/v2.0
 export OS_USERNAME=mini-mon
 export OS_TENANT_NAME=mini-mon
 
@@ -148,9 +172,17 @@ export OS_TENANT_NAME=mini-mon
 	admin_tenant_name = admin
 	admin_password = admin
 	admin_user = admin
-	identity_uri = http://10.0.0.46:35357
-	auth_uri = http://10.0.0.46:5000/v2.0
+	identity_uri = http://10.0.0.50:35357
+	auth_uri = http://10.0.0.50:5000/v2.0
 
 	[ec2authtoken]
-	auth_uri = http://10.0.0.46:5000/v2.0
+	auth_uri = http://10.0.0.50:5000/v2.0
 
+
+export OS_NO_CLIENT_AUTH=1
+export OS_AUTH_TOKEN=82510970543135
+export OS_PROJECT_NAME=mini-mon
+export OS_PASSWORD=password
+export OS_AUTH_URL=http://10.0.0.50:35357/v3/
+export OS_USERNAME=mini-mon
+export MONASCA_API_URL=http://10.0.0.50:8080/v2.0/
