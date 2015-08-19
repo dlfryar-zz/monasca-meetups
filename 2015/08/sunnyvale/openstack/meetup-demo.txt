@@ -4,7 +4,7 @@ openstack_meetup_sunnyvale_aug_2015
 
 # Set up an instance in the public cloud
 
-############### TERMINAL 1 ###############
+############### MONASCA-DOCKER ###############
 
 # Connect to the public cloud instance
 ssh-keygen -R 15.126.219.85
@@ -57,9 +57,15 @@ if [ "$1" == "domains" ]; then
   resource="domains"
 fi
 
+if [ "$1" == "projects" ]; then
+  resource="projects"
+fi
 if [ ! -z $resource ]; then
   curl -s $url$resource -H "X-Auth-Token: "$TOKEN"" | python -m json.tool
 fi
+
+# Make script executable
+chmod a+x identity_show
 
 # Source the env
 source monasca.env
@@ -108,10 +114,7 @@ git clone https://git.openstack.org/openstack-dev/devstack && cd devstack
 cp samples/local.conf .
 
 # Put in our public IP
-sed -i 's/#HOST_IP=w\.x\.y\.z/HOST_IP=10.0.0.51/g' local.conf
-
-# Enable Neutron on Devstack
-sed -i '/[[local|localrc]]/a \\n#Enable Neutron services\ndisable_service n-net\nenable_service q-svc\nenable_service q-agt\nenable_service q-dhcp\nenable_service q-l3\nenable_service q-meta' local.conf
+sed -i 's/#HOST_IP=w\.x\.y\.z/HOST_IP=10.0.0.49/g' local.conf
 
 # Enable Heat on Devstack
 sed -i '/[[local|localrc]]/a \\n#Enable heat services\nenable_service h-eng h-api h-api-cfn h-api-cw' local.conf
@@ -146,8 +149,13 @@ echo "export OS_TENANT_NAME=admin" >> ~/devstack.env
 echo "export OS_VOLUME_API_VERSION=2" >> ~/devstack.env
 echo "export OS_NO_CACHE=1" >> ~/devstack.env
 
-# Upload a Docker image to Glance
-glance image-create --name CoreOS --container-format bare --disk-format qcow2 --progress --file ~/images/coreos_production_openstack_image.img
+# Make sure Heat is working on Devstack
+heat stack-list
+heat resource-type-list
+
+# Install python-monascaclient on Devstack for convenience
+sudo pip install python-monascaclient -y
+
 
 
 ################ Kanagaraj NOTES ################
@@ -186,3 +194,47 @@ export OS_PASSWORD=password
 export OS_AUTH_URL=http://10.0.0.50:35357/v3/
 export OS_USERNAME=mini-mon
 export MONASCA_API_URL=http://10.0.0.50:8080/v2.0/
+
+################ EXTRA NOTES ################
+
+wget http://cloud.fedoraproject.org/fedora-20.x86_64.qcow2
+
+# Upload a Docker image to Glance
+glance image-create --name CoreOS --container-format bare --disk-format qcow2 --progress --file ~/images/coreos_production_openstack_image.img
+glance image-create --name Fedora20 --container-format bare --disk-format qcow2 --progress --file ~/fedora-20.x86_64.qcow2
+
+heat stack-create teststack -u http://git.openstack.org/cgit/openstack/heat-templates/plain/hot/F20/WordPress_Native.yaml -P key_name=heat_key -P image_id=Fedora20
+
+
+
+ubuntu@devstack:~$ keystone tenant-list
++----------------------------------+--------------------+---------+
+|                id                |        name        | enabled |
++----------------------------------+--------------------+---------+
+| 8640198681c34c2aae5b9be65411e230 |       admin        |   True  |
++----------------------------------+--------------------+---------+
+
+export HEAT_URL=http://localhost:8004/v1/8640198681c34c2aae5b9be65411e230
+
+######################### WORKING #############################
+HEAT_URL=http://localhost:8004/v1/f3fde1481ce54a7391214d1c955360e4
+OS_AUTH_URL=http://10.0.0.51:35357/v2.0/
+OS_PASSWORD=password
+OS_TENANT_NAME=mini-mon
+OS_USERNAME=mini-mon
+
+/etc/heat/heat.conf
+
+# stack_user_domain_id = 6448799dcf5a4e3d9170d7584846d910
+[keystone_authtoken]
+# signing_dir = /var/cache/heat
+# cafile = /opt/stack/data/ca-bundle.pem
+admin_tenant_name = admin
+admin_password = admin
+admin_user = admin
+identity_uri = http://10.0.0.51:35357
+auth_uri = http://10.0.0.51:5000/v2.0
+
+[ec2authtoken]
+auth_uri = http://10.0.0.51:5000/v2.0
+
