@@ -1,0 +1,68 @@
+# bring up a Ubuntu 14.04.2 LTS instance
+vagrant up
+
+# login to the instane
+vagrant ssh mon-agent
+
+# create a working directory for monasca
+sudo mkdir -p /opt/monasca && sudo chown -R vagrant: /opt/monasca
+
+# create a python virtualenv
+cd /opt/monasca/ && virtualenv --no-site-packages .
+
+# become root needed for setup
+sudo su
+
+# install the monasca agent with pip in the venv
+source bin/activate && pip install monasca-agent
+
+# run monasca setup
+monasca-setup --username mini-mon --password password --project_name mini-mon --keystone_url http://192.168.10.5:35357/v3
+
+
+# look at the agent config
+vi /etc/monasca/agent/agent.yaml
+
+
+######## enable ping check from mini-mon
+sudo vi /etc/monasca/agent/conf.d/host_alive.yaml
+
+# restart the agent
+sudo service monasca-agent restart
+
+# look for metrics for mon-agent instance
+monasca metric-list --name host_alive_status
+
+
+# look at the notifications for the mon-agent instance
+sudo su -c alpine
+
+######## how to write and setup a plugin
+
+
+# install influxdb
+sudo dpkg -i /vagrant_home/tmp/ubuntu-vm-vagrant/influxdb_0.9.0-rc28_amd64.deb
+
+# start influx
+sudo service influxdb start
+
+# make sure influx is running
+ps -ef | grep -i influx
+
+# check the influx http interface on our new instance
+http://192.168.10.6:8083/
+
+# copy the plugin from the review https://review.openstack.org/#/c/196167/
+cd /opt/monasca/
+cp /vagrant_home/source/openstack/monasca/monasca-agent/monasca_agent/collector/checks_d/influxdb.py lib/python2.7/site-packages/monasca_agent/collector/checks_d/
+cp /vagrant_home/source/openstack/monasca/monasca-agent/monasca_setup/detection/plugins/influxdb.py lib/python2.7/site-packages/monasca_setup/detection/plugins/
+
+# run setup on the new plugin
+monasca-setup -d InfluxDB --username mini-mon --password password --project_name mini-mon --keystone_url http://192.168.10.5:35357/v3
+
+# look at the config for the agent plugin
+sudo vi /etc/monasca/agent/conf.d/influxdb.yaml
+
+# verify metrics on mini-mon
+monasca metric-list | grep -i influx
+
