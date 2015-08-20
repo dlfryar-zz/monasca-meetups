@@ -1,0 +1,36 @@
+heat_template_version: 2013-05-23
+description: A simple auto-scaling
+resources:
+  group:
+    type: OS::Heat::AutoScalingGroup
+    properties:
+      cooldown: 60
+      desired_capacity: 2
+      max_size: 3
+      min_size: 1
+      resource:
+        type: OS::Nova::Server
+        properties:
+          flavor: m1.nano
+          image: cirros-0.3.4-x86_64-uec
+  scaleup_policy:
+    type: OS::Heat::ScalingPolicy
+    properties:
+      adjustment_type: change_in_capacity
+      auto_scaling_group_id: { get_resource: group }
+      cooldown: 60
+      scaling_adjustment: 1
+  notification:
+    type: OS::Monasca::Notification
+    properties:
+      type: webhook
+      address: {get_attr: [scaleup_policy, alarm_url]}
+  cpu_alarm_high:
+    type: OS::Monasca::AlarmDefinition
+    properties:
+      name: CPU utilization beyond 50 perct
+      description: CPU unitlization reached beyond 50 %
+      expression: avg(cpu.utilization_perc) > 50 times 1
+      severity: low
+      alarm_actions:
+        - {get_resource: notification }
