@@ -216,14 +216,15 @@ ubuntu@devstack:~$ keystone tenant-list
 
 export HEAT_URL=http://localhost:8004/v1/8640198681c34c2aae5b9be65411e230
 
-######################### WORKING #############################
-HEAT_URL=http://localhost:8004/v1/f3fde1481ce54a7391214d1c955360e4
-OS_AUTH_URL=http://10.0.0.51:35357/v2.0/
-OS_PASSWORD=password
-OS_TENANT_NAME=mini-mon
-OS_USERNAME=mini-mon
+######################### DEVSTACK HEAT DEMO #############################
 
-/etc/heat/heat.conf
+export HEAT_URL=http://localhost:8004/v1/f3fde1481ce54a7391214d1c955360e4
+export export OS_AUTH_URL=http://10.0.0.51:35357/v2.0/
+export OS_PASSWORD=password
+export OS_TENANT_NAME=mini-mon
+export OS_USERNAME=mini-mon
+
+vi /etc/heat/heat.conf
 
 # stack_user_domain_id = 6448799dcf5a4e3d9170d7584846d910
 [keystone_authtoken]
@@ -237,4 +238,14 @@ auth_uri = http://10.0.0.51:5000/v2.0
 
 [ec2authtoken]
 auth_uri = http://10.0.0.51:5000/v2.0
+
+ubuntu@devstack:~$ heat resource-type-list
++------------------------------------------+
+| resource_type                            |
++------------------------------------------+
+| ...                                      |
+| OS::Monasca::AlarmDefinition             |
+| OS::Monasca::Notification                |
+| ...                                      |
++------------------------------------------+
 
