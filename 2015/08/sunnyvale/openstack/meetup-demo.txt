@@ -158,65 +158,22 @@ sudo pip install python-monascaclient -y
 
 
 
-################ Kanagaraj NOTES ################
-
-export HEAT_URL=http://10.0.0.51:8004/v1/f3fde1481ce54a7391214d1c955360e4
-export OS_PROJECT_NAME=mini-mon
-export OS_PASSWORD=password
-export OS_AUTH_URL=http://10.0.0.50:35357/v2.0
-export OS_USERNAME=mini-mon
-export OS_TENANT_NAME=mini-mon
-
-/etc/heat/heat.conf
-
-	# stack_domain_admin_password = nomoresecrete
-	# stack_domain_admin = heat_domain_admin
-	# stack_user_domain_id = 914416477e5d4f3dbe8c04b675c77504
-	# deferred_auth_method = trusts
-
-	[keystone_authtoken]
-	# signing_dir = /var/cache/heat
-	# cafile = /opt/stack/data/ca-bundle.pem
-	admin_tenant_name = admin
-	admin_password = admin
-	admin_user = admin
-	identity_uri = http://10.0.0.50:35357
-	auth_uri = http://10.0.0.50:5000/v2.0
-
-	[ec2authtoken]
-	auth_uri = http://10.0.0.50:5000/v2.0
-
-
-export OS_NO_CLIENT_AUTH=1
-export OS_AUTH_TOKEN=82510970543135
-export OS_PROJECT_NAME=mini-mon
-export OS_PASSWORD=password
-export OS_AUTH_URL=http://10.0.0.50:35357/v3/
-export OS_USERNAME=mini-mon
-export MONASCA_API_URL=http://10.0.0.50:8080/v2.0/
-
 ################ EXTRA NOTES ################
 
 wget http://cloud.fedoraproject.org/fedora-20.x86_64.qcow2
 
-# Upload a Docker image to Glance
-glance image-create --name CoreOS --container-format bare --disk-format qcow2 --progress --file ~/images/coreos_production_openstack_image.img
+# Upload a Fedora image to Glance
+
 glance image-create --name Fedora20 --container-format bare --disk-format qcow2 --progress --file ~/fedora-20.x86_64.qcow2
 
-heat stack-create teststack -u http://git.openstack.org/cgit/openstack/heat-templates/plain/hot/F20/WordPress_Native.yaml -P key_name=heat_key -P image_id=Fedora20
+heat stack-create teststack -u
 
+http://git.openstack.org/cgit/openstack/heat-templates/plain/hot/F20/WordPress_Native.yaml -P key_name=heat_key -P image_id=Fedora20
 
-
-ubuntu@devstack:~$ keystone tenant-list
-+----------------------------------+--------------------+---------+
-|                id                |        name        | enabled |
-+----------------------------------+--------------------+---------+
-| 8640198681c34c2aae5b9be65411e230 |       admin        |   True  |
-+----------------------------------+--------------------+---------+
-
-export HEAT_URL=http://localhost:8004/v1/8640198681c34c2aae5b9be65411e230
 
 ######################### DEVSTACK HEAT DEMO #############################
+
+source heat.env
 
 export HEAT_URL=http://localhost:8004/v1/f3fde1481ce54a7391214d1c955360e4
 export export OS_AUTH_URL=http://10.0.0.51:35357/v2.0/
